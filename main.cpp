@@ -4,6 +4,8 @@ using namespace std;
 
 #define POP_MAX 1000
 
+auto start = chrono::system_clock::now();
+
 class Sudoku {
 private:
     vector <vector <char>> stencil;
@@ -31,7 +33,7 @@ private:
         /*
         This function generates a population based on the input data.
         Initially, every row has the correct 1-9 elements, which are randomly shuffled,
-        except those given, those are fixed in place.
+        except the given ones, those are fixed in place.
         */
         population.resize(POP_MAX);
         for (int k = 0; k < POP_MAX; k++) {
@@ -151,7 +153,7 @@ private:
        return fitnessValue;
     }
 
-    void crossoverOfRows(vector <char> &row1, vector <char> &row2, vector <char> stencilRow, int pos) {
+    void crossoverOfRowsSlow(vector <char> &row1, vector <char> &row2, vector <char> stencilRow, int pos) {
         /*
         This function is responsible for performing crossover on
         corresponding rows from 2 souls
@@ -213,6 +215,27 @@ private:
         row1 = new_row1;
         row2 = new_row2;
     }
+
+    void crossoverOfRowsFast(vector <char> &row1, vector <char> &row2, vector <char> stencilRow, int pos) {
+        vector <char> new_row1 = stencilRow, new_row2 = stencilRow;
+
+        for (int j = 0; j < pos; j++) {
+            new_row1[j] = row1[j];
+        }
+        for (int j = pos; j < 9; j++) {
+            new_row1[j] = row2[j];
+        }
+
+        for (int j = 0; j < pos; j++) {
+            new_row2[j] = row1[j];
+        }
+        for (int j = pos; j < 9; j++) {
+            new_row2[j] = row2[j];
+        }
+
+        row1 = new_row1;
+        row2 = new_row2;
+    }
     
     pair <vector <vector <char>>, vector <vector <char>>> crossoverOfSouls(vector <vector <char>> soul1, vector <vector <char>> soul2) {
         /*
@@ -231,7 +254,7 @@ private:
         
         for (int i = 0; i < 9; i++) {
             vector <char> &row1 = soul1[i], &row2 = soul2[i], stencilRow = stencil[i];
-            crossoverOfRows(row1, row2, stencilRow, pos);
+            crossoverOfRowsFast(row1, row2, stencilRow, pos);
         }
         pair <vector <vector <char>>, vector <vector <char>>> result = {soul1, soul2};
         return result;
@@ -248,12 +271,15 @@ private:
             new_population - array of 2*POP_MAX souls (POP_MAX previous
                 souls & POP_MAX new souls)
         */
+        auto timer = chrono::system_clock::now().time_since_epoch();
         auto new_population = population;
         for (int k = 0; k < POP_MAX - 1; k += 2) {
             auto couple = crossoverOfSouls(population[k], population[k + 1]);
             new_population.push_back(couple.first);
             new_population.push_back(couple.second);
         }
+        printf("NewPop(ms)=%d\n", chrono::duration_cast<chrono::milliseconds>
+            (chrono::system_clock::now().time_since_epoch() - timer).count());
         return new_population;
     }
 
@@ -262,7 +288,7 @@ private:
     }
 
     void selection(vector <vector <vector <char>>> newPopulation) {
-
+        auto timer = chrono::system_clock::now().time_since_epoch();
         sort(newPopulation.begin(), newPopulation.end(), 
         [this](vector <vector <char>> soul1, vector <vector <char>> soul2) {
             return this->sortBasedOnFitness(soul1, soul2);
@@ -271,6 +297,8 @@ private:
         printf("%f\n", fitness(slice[0]));
         random_shuffle(slice.begin(), slice.end());
         population = slice;
+        printf("Select(ms)=%d\n", chrono::duration_cast<chrono::milliseconds>
+            (chrono::system_clock::now().time_since_epoch() - timer).count());
     }    
 
 public:
@@ -329,7 +357,7 @@ public:
         printf("\n");
         for (int j = 0; j < 9; j++) printf("%c ", soul2[0][j]);
         printf("\n");
-        crossoverOfRows(soul1[0], soul2[0], stencil[0], 4);
+        crossoverOfRowsFast(soul1[0], soul2[0], stencil[0], 4);
         for (int j = 0; j < 9; j++) printf("%c ", soul1[0][j]);
         printf("\n");
         for (int j = 0; j < 9; j++) printf("%c ", soul2[0][j]);
@@ -345,6 +373,10 @@ public:
         while (!solutionFound) {
             auto new_population = ultimateCrossover();
             selection(new_population);
+            printf("Total(ms) = %d\n", chrono::duration_cast<chrono::milliseconds>
+                (chrono::system_clock::now().time_since_epoch() - start.time_since_epoch()).count());
+            start = chrono::system_clock::now();
+            printf("----------------------------\n");
         }
         for (auto &row : solution) {
             for (auto &el : row) {
