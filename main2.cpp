@@ -3,7 +3,7 @@
 using namespace std;
 
 #define POP_MAX 1000
-#define MUTATION_RATE 0.05
+#define MUTATION_RATE 0.2
 
 class Sudoku {
 private:
@@ -169,45 +169,75 @@ private:
         string new_row1 = stencilRow, new_row2 = stencilRow;
 
         set <char> used_in_row1;
-        for (int j = 0; j < pos; j++) {
-            new_row1[j] = row1[j];
-            used_in_row1.insert(row1[j]);
+        for (int j = 0; j < 9; j++) {
+            if (stencilRow[j] != '-') {
+                used_in_row1.insert(stencilRow[j]);
+            }
         }
-        int k = pos;
+        set <char> used_in_row2 = used_in_row1;
+
+        string extra_in_row1 = "";
+        for (int j = 0; j < pos; j++) {
+            if (used_in_row1.find(row1[j]) == used_in_row1.end()) {
+                extra_in_row1 += row1[j];
+                used_in_row1.insert(row1[j]);
+            }
+        }
         for (int j = pos; j < pos + 9; j++) {
-            if (new_row1[k] != '-') {
-                k++;
-                continue;
-            }
             if (used_in_row1.find(row2[j % 9]) == used_in_row1.end()) {
-                new_row1[k] = row2[j % 9];
+                extra_in_row1 += row2[j % 9];
                 used_in_row1.insert(row2[j % 9]);
+            }
+            if (used_in_row1.size() == 9) {
+                break;
+            }
+        }
+        int k = 0;
+        for (int j = 0; j < 9; j++) {
+            if (new_row1[j] == '-') {
+                new_row1[j] = extra_in_row1[k];
                 k++;
             }
-            if (k == 9) {
+            if (k == extra_in_row1.size()) {
                 break;
             }
         }
 
-        set <char> used_in_row2;
+        string extra_in_row2_part_1 = "", extra_in_row2_part_2 = "";
         for (int j = pos; j < 9; j++) {
-            new_row2[j] = row2[j];
-            used_in_row2.insert(row2[j]);
+            if (used_in_row2.find(row2[j]) == used_in_row2.end()) {
+                extra_in_row2_part_2 += row2[j];
+                used_in_row2.insert(row2[j]);
+            }
         }
-        k = 0;
+
         for (int j = 0; j < 9; j++) {
-            if (new_row2[k] != '-') {
-                k++;
-                continue;
-            }
             if (used_in_row2.find(row1[j]) == used_in_row2.end()) {
-                new_row2[k] = row1[j];
+                extra_in_row2_part_1 += row1[j];
                 used_in_row2.insert(row1[j]);
-                k++;
             }
-            if (k == pos) {
+            if (used_in_row2.size() == 9) {
                 break;
             }
+        }
+        string extra_in_row2 = extra_in_row2_part_1 + extra_in_row2_part_2;
+        k = 0;
+        for (int j = 0; j < 9; j++) {
+            if (new_row2[j] == '-') {
+                new_row2[j] = extra_in_row2[k];
+                k++;
+            }
+            if (k == extra_in_row2.size()) {
+                break;
+            }
+        }
+
+        if (new_row1.find('-') != string::npos || new_row2.find('-') != string::npos) {
+            cout << pos << ' ' << stencilRow << ' ' << new_row1 << ' ' << new_row2 << ' ' << row1 << ' ' << row2 << '\n';
+            for (auto &el : used_in_row1) cout << el << ' ';
+            cout << '\n';
+            for (auto &el : used_in_row2) cout << el << ' ';
+            exit(EXIT_FAILURE);
         }
 
         return {new_row1, new_row2};
@@ -277,11 +307,14 @@ private:
         auto timer = chrono::system_clock::now().time_since_epoch();
 
         for (int itr = 3; itr < POP_MAX; itr++) {
-            for (int k = 0; k < 81; k++) {
-                if (stencil[k] == '-') {
+            for (int i = 0; i < 9; i++) {
+                for (int j = 0; j < 9; j++) {
                     double c = rand() % 100 / 100;
-                    if (c < MUTATION_RATE) {
-                        mutated_population[itr][k] = rand() % 9 + 49;
+                    int other = rand() % 9;
+                    if (c <= MUTATION_RATE && stencil[i * 9 + j] == '-' && other != j && stencil[i * 9 + other] == '-') {
+                        char temp = mutated_population[itr][i * 9 + j];
+                        mutated_population[itr][i * 9 + j] = mutated_population[itr][i * 9 + other];
+                        mutated_population[itr][i * 9 + other] = temp;
                     }
                 }
             }
@@ -289,8 +322,6 @@ private:
 
         printf("Mutation(ms) = %d\n", chrono::duration_cast<chrono::milliseconds>
             (chrono::system_clock::now().time_since_epoch() - timer).count());
-
-        outputSolutionLikeString(mutated_population[0]);
 
         return mutated_population;
     }
@@ -320,6 +351,7 @@ private:
             (chrono::system_clock::now().time_since_epoch() - timer).count());
 
         vector <string> mutated_population = performMutation(newPopulation);
+        // vector <string> mutated_population = newPopulation;
 
         vector <string> slice(mutated_population.begin(), mutated_population.begin() + POP_MAX);
 
@@ -370,6 +402,7 @@ public:
             auto timer = chrono::system_clock::now().time_since_epoch();
             auto new_population = ultimateCrossover();
             selection(new_population);
+            outputSolutionLikeString(population[0]);
             printf("Gen(ms) = %d\n", chrono::duration_cast<chrono::milliseconds>
                 (chrono::system_clock::now().time_since_epoch() - timer).count());
             timer = chrono::system_clock::now().time_since_epoch();
