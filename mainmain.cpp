@@ -50,6 +50,8 @@ public:
         }
     }
 
+    Soul() {}
+
     Soul(string genetics, string stencil) : genetics(genetics) {
         calculateFitness(stencil);
     }
@@ -84,6 +86,7 @@ private:
         This function generates a population based on the input data.
         Initially, every row has the correct 1-9 elements, which are
         randomly shuffled, except the given ones, those are fixed in place.
+        At the end population is sorted based on fitness.
         */
         population.resize(POP_MAX);
         for (int k = 0; k < POP_MAX; k++) {
@@ -108,11 +111,102 @@ private:
             }
             population[k] = Soul(soul, stencil);
         }
+
+        sort(
+            population.begin(),
+            population.end(),
+            [this](Soul soul1, Soul soul2) {
+                return this->sortBasedOnFitness(soul1, soul2);
+            }
+        );
+    }
+
+    bool sortBasedOnFitness(const Soul& soul1, const Soul& soul2) {
+        return soul1.fitness_value > soul2.fitness_value;
+    }
+
+    void exchangeIndices(int &ft, int &sd) {
+        if (ft <= sd) return;
+        else {
+            int temp = ft;
+            ft = sd;
+            sd = temp;
+        }
+    }
+
+    void crossover(vector <Soul> &pop) {
+        vector <Soul> new_population;
+
+        int ft = rand() % 80 + 1, sd = rand() % 80 + 1;
+
+        exchangeIndices(ft, sd);
+
+        for (int i = 0; i < POP_MAX * 70 / 100; i += 2) {
+            string gen1 = pop[i].genetics.substr(0, ft)
+                + pop[i + 1].genetics.substr(ft, sd - ft)
+                + pop[i].genetics.substr(sd, 81);
+            string gen2 = pop[i + 1].genetics.substr(0, ft)
+                + pop[i].genetics.substr(ft, sd - ft)
+                + pop[i + 1].genetics.substr(sd, 81);
+            new_population.push_back(Soul(gen1, stencil));
+            new_population.push_back(Soul(gen2, stencil));
+        }
+
+        pop = new_population;
+
+    }
+
+    void mutation(vector <Soul> &pop) {
+        vector <Soul> mutated_population = pop;
+
+        for (int i = 0; i < POP_MAX * 70 / 100; i++) {
+            double c = rand() % 100 / 100;
+            int id1 = rand() % 81, id2 = rand() % 81;
+            if (c <= MUTATION_RATE && stencil[id1] != '-' && stencil[id2] != '-') {
+                char temp = pop[i].genetics[id1];
+                pop[i].genetics[id1] = pop[i].genetics[id2];
+                pop[i].genetics[id2] = temp;
+            }
+        }
+
+        pop = mutated_population;
+
+    }
+
+    void selectionEtAl() {
+
+        vector <Soul> new_population = population;
+
+        vector <Soul> best_population(new_population.begin(), new_population.begin() + POP_MAX * 15 / 100);
+        vector <Soul> avg_population(new_population.begin() + POP_MAX * 15 / 100, new_population.begin() + POP_MAX * 85 / 100);
+        vector <Soul> worst_population(new_population.begin() + POP_MAX * 85 / 100, new_population.end());
+
+        crossover(avg_population);
+        mutation(avg_population);
+
+        new_population.clear();
+        new_population.insert(new_population.end(), best_population.begin(), best_population.end());
+        new_population.insert(new_population.end(), avg_population.begin(), avg_population.end());
+        new_population.insert(new_population.end(), worst_population.begin(), worst_population.end());
+
+        sort(
+            new_population.begin(),
+            new_population.end(),
+            [this](Soul soul1, Soul soul2) {
+                return this->sortBasedOnFitness(soul1, soul2);
+            }
+        );
+
+        if (new_population[0].fitness_value == 243) {
+            solution = new_population[0];
+            solutionFound = true;
+        }
+
     }
 
 public:
-    void outputPopulation() {
-        for (auto &soul : population) {
+    void outputPopulation(vector <Soul> pop) {
+        for (auto &soul : pop) {
             cout << soul.genetics << ' ' << soul.fitness_value << '\n';
         }
     }
@@ -120,13 +214,36 @@ public:
     Sudoku() {
         inputStencil();
     }
+
+    void solve() {
+        /*
+            (1) Create population
+            (2) Selection
+                (2.1) Sort population based on fitness
+                (2.2) Preserve 15% best and 15% worst souls
+            (3) Crossover on other 70%
+            (4) Mutation on new
+            (5) Run it back!
+        */
+
+        createPopulation();
+
+        while (!solutionFound) {
+            selectionEtAl();
+            cout << population[0].genetics << ' ' << population[0].fitness_value << '\n';
+        }
+    }
 };
 
 int main() {
 
-    auto sudoku = Sudoku();
+    // freopen("output.txt", "w", stdout);
 
-    sudoku.outputPopulation();
+    // srand(time(0));
+
+    auto sudoku = Sudoku();
+    
+    sudoku.solve();
 
     exit(EXIT_SUCCESS);
 }
