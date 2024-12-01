@@ -33,8 +33,8 @@ private:
     void createPopulation() {
         /*
         This function generates a population based on the input data.
-        Initially, every row has the correct 1-9 elements, which are randomly shuffled,
-        except the given ones, those are fixed in place.
+        Initially, every row has the correct 1-9 elements, which are
+        randomly shuffled, except the given ones, those are fixed in place.
         */
         population.resize(POP_MAX);
         for (int k = 0; k < POP_MAX; k++) {
